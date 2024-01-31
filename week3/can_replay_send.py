@@ -18,6 +18,7 @@ for i in can_data:
     message = can.Message(arbitration_id=nList[0], data=[nList[t] for t in range(1,9)],is_extended_id=False)
 
     bus.send(message)
+    time.sleep(1)
 
 
 
