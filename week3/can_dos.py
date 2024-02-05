@@ -10,6 +10,6 @@ message = bus.recv(10.0)
 ID = message.arbitration_id
 
 while 1:
-    msg = can.Message(arbitration_id=ID, data=[9, 9, 9, 9, 9, 9, 9, 9],is_extended_id=False)
+    msg = can.Message(arbitration_id=0, data=[9, 9, 9, 9, 9, 9, 9, 9],is_extended_id=False)
     bus.send(msg)
     time.sleep(0.01)
