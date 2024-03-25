@@ -84,36 +84,44 @@ key = plain2bitarray(key_origin)
 while 1:
     # Receive Can Message
     message = bus.recv(10.0)
-    receive_data = message.data
-    
-    receive_data = [hex(n) for n in receive_data]
-    #receive_data = [t[2:] for t in receive_data]    # delete '0x'
-    receive_data = ['0{}'.format(t[2:]) if len(t[2:]) == 1 else t[2:] for t in receive_data]
 
-    # Decryption using RC4
-    decrypted = decrypt(key, receive_data)
-    decrypted = [int(h,16) for h in decrypted]
-    print('Decryption Data: ', decrypted)
-
-    # HMAC Algorithm using SHA-256
-    mac_data = decrypted[4:]    
-    key = plain2bitarray(key_origin)
-    h = hmac.HMAC(key, hashes.SHA256())
-    mac_data = decimal2bytes(mac_data)
-    h.update(mac_data)
-    signature = h.finalize()
-    print('Calculate MAC: ',signature)
-
-    # Check Authorization
-    signature = [byte for byte in signature]
-
-    if signature[:4] == decrypted[:4]:
-        print("This Message is correct")
+    if message is None:
+        print('No message received')
+        print('\n================================\n')
     else:
-        print("Deny the Message")
-        
-    # Key Regeneration
-    digest = hashes.Hash(hashes.SHA256())
-    digest.update(key)
-    key = digest.finalize()
-    print('Key Regeneration: ', key)
+        receive_data = message.data
+
+        receive_data = [hex(n) for n in receive_data]
+        #receive_data = [t[2:] for t in receive_data]    # delete '0x'
+        receive_data = ['0{}'.format(t[2:]) if len(t[2:]) == 1 else t[2:] for t in receive_data]
+
+        # Decryption using RC4
+        print('KEY: ',key)
+        decrypted = decrypt(key, receive_data)
+        decrypted = [int(h,16) for h in decrypted]
+        print('Decryption Data: ', decrypted)
+
+        # HMAC Algorithm using SHA-256
+        mac_data = decrypted[4:]    
+        h = hmac.HMAC(key, hashes.SHA256())
+        mac_data = decimal2bytes(mac_data)
+        h.update(mac_data)
+        signature = h.finalize()
+        print('Calculate MAC: ',signature)
+
+        # Check Authorization
+        signature = [byte for byte in signature]
+
+        if signature[:4] == decrypted[:4]:
+            print("This Message is correct")
+        else:
+            print("Deny the Message")
+
+        # Key Regeneration
+        digest = hashes.Hash(hashes.SHA256())
+        digest.update(key)
+        key = digest.finalize()
+        print('Key Regeneration: ', key)
+        print('')
+        print('================================')
+        print('')

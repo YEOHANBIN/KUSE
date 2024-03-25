@@ -76,6 +76,7 @@ while 1:
     data = [12,21,33,47]
 
     # HMAC Algorithm using SHA-256
+    print('KEY: ',key)
     h = hmac.HMAC(key, hashes.SHA256())
     mac_data = decimal2bytes(data)
     h.update(mac_data)
@@ -88,8 +89,7 @@ while 1:
     print('Send Data: ', send_data)
 
     # Encryption using RC4
-    byte_array_key = bytearray(key_origin, 'utf-8')
-    hex_key = byte_array_key.hex()
+    hex_key = key.hex()
 
     ciphertext = encrypt(hex_key, send_data)
     cipher_msg = [int(h,16) for h in ciphertext]
@@ -107,3 +107,4 @@ while 1:
     digest.update(key)
     key = digest.finalize()
     print('Key Regeneration: ', key)
+    print('\n==============================\n')
