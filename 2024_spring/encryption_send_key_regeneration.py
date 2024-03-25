@@ -1,6 +1,7 @@
 import os
 import can
 from cryptography.hazmat.primitives import hashes, hmac
+import time
 
 bus = can.interface.Bus(channel = 'can0', bustype = 'socketcan')
 MOD = 256
@@ -97,6 +98,9 @@ while 1:
     # Send Can Message
     message = can.Message(arbitration_id=0x01, data=cipher_msg, is_extended_id=False)
     bus.send(message)
+
+    time.sleep(3)
+
 
     # Key Regeneration
     digest = hashes.Hash(hashes.SHA256())

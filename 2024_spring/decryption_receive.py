@@ -83,7 +83,8 @@ while 1:
     receive_data = message.data
     
     receive_data = [hex(n) for n in receive_data]
-    receive_data = [t[2:] for t in receive_data]    # delete '0x'
+    #receive_data = [t[2:] for t in receive_data]    # delete '0x'
+    receive_data = ['0{}'.format(t[2:]) if len(t[2:]) == 1 else t[2:] for t in receive_data]
 
     # Decryption using RC4
     key_origin = 'Friday'
