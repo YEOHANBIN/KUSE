@@ -64,6 +64,18 @@ def encrypt(key, plaintext):
         res.append(val)
     return res
 
+def decrypt(key, ciphertext):
+    if type(key) == type('c'):
+        key = bytearray(key, 'utf-8')
+        
+    hex_key = key.hex()
+    
+    ciphertext = [bytes.fromhex(c) for c in ciphertext]
+
+    #print('ciphertext to func:', ciphertext)
+    res = encrypt(hex_key, ciphertext)
+    return res
+
 def diffie_hellman(prime, generator, private_key):
     public_key = pow(generator, private_key, prime)  # Use pow() for exponentiation
     return public_key
@@ -75,6 +87,7 @@ def generate_key_table(final_key):
     sha256.update(str(final_key).encode())
     key_hash = sha256.hexdigest()
     key_table = [key_hash[i*16:(i+1)*16] for i in range(0,len(key_hash))]
+    print("[Key Table]: ")
 
     return key_table
 
@@ -89,7 +102,7 @@ def send_key():
 bus = can.interface.Bus(channel = 'can0', bustype = 'socketcan')
 
 MOD = 256
-node1_CAN_ID = 0x456
+node1_CAN_ID = 0x123
 node2_CAN_ID = 0x123
 node1_private_key = 15
 prime = 23
@@ -97,7 +110,8 @@ generator = 5
 
 # Initialize an empty key table
 key_table = None
-update_count=0
+table_syncronize = False
+error_count=0
 
 while 1:
     # Receive
@@ -115,18 +129,81 @@ while 1:
 
             key_table = generate_key_table(final_key)
             print('Key table: ', key_table)
-        elif message.arbitration_id == 0x999:           # 0x999 is error message
+            message = can.Message(arbitration_id=0x456, data=[0,0,0,0,0,0,0,0], is_extended_id = False)
+            bus.send(message)
+        elif message.arbitration_id == 0x456:
+            table_syncronize = True
+            print('Syncronize')
+        elif message.arbitration_id == 0x55:           # 0x999 is error message
             key_table = None
+            table_syncronize = False
+            print('[Initialize]')
+            continue
         else:
-            pass
+            if key_table is None:
+                time.sleep(3)
+                continue
+            elif type(key_table[1]) != bytes:
+                key = plain2bitarray(key_table[1])
+            else:
+                key = key_table[1]
+
+            receive_data = message.data
+
+            receive_data = [hex(n) for n in receive_data]
+            #receive_data = [t[2:] for t in receive_data]    # delete '0x'
+            receive_data = ['0{}'.format(t[2:]) if len(t[2:]) == 1 else t[2:] for t in receive_data]
+
+            # Decryption using RC4
+            print('KEY: ',key)
+            decrypted = decrypt(key, receive_data)
+            decrypted = [int(h,16) for h in decrypted]
+            print('Decryption Data: ', decrypted)
+
+            # HMAC Algorithm using SHA-256
+            mac_data = decrypted[4:]    
+            h = hmac.HMAC(key, hashes.SHA256())
+            mac_data = decimal2bytes(mac_data)
+            h.update(mac_data)
+            signature = h.finalize()
+            print('Calculate MAC: ',signature)
+
+            # Check Authorization
+            signature = [byte for byte in signature]
+
+            if signature[:4] == decrypted[:4]:
+                print("This Message is correct")
+            else:
+                print("Deny the Message")
+                error_count += 1
+                if error_count == 5:
+                    print('[RESET]')
+                    key_table = None
+                    table_syncronize = False
+                    error_count = 0
+                    for i in range(5):
+                        message = can.Message(arbitration_id=0x999, data=[0,0,0,0,0,0,0,0], is_extended_id = False)
+                        bus.send(message)
+                        print('[Error]')
+                        time.sleep(3)
+                continue
+
+            # Key Regeneration
+            digest = hashes.Hash(hashes.SHA256())
+            digest.update(key)
+            key_table[1] = digest.finalize()
+            print('Key Regeneration: ', key)
+            print('\n==============================\n')
     
     # Send
     data = [12, 21, 33, 47]
-    if key_table == None:
+    if key_table == None or table_syncronize == False:
         send_key()
     else:
-        if type(key_table[0]) != bytearray:
+        if type(key_table[0]) != bytes:
             key = plain2bitarray(key_table[0])
+        else:
+            key = key_table[0]
 
         # HMAC Algorithm using SHA-256
         print('KEY: ', key)
